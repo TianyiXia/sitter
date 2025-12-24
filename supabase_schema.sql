@@ -19,12 +19,15 @@ create table public.settings (
   holiday_rate numeric not null default 75,
   holidays date[] null,
   requirements text[] null,
+  host_name text not null default 'Tianyi',
+  host_location text not null default 'San Francisco Bay Area',
+  host_bio text not null default 'Hi, I''m Tianyi! I offer professional dog sitting services in a safe and loving environment.',
   constraint settings_pkey primary key (id)
 );
 
 -- Insert default settings
-insert into public.settings (base_rate, holiday_rate, holidays, requirements)
-values (50, 75, array[]::date[], array['Dogs must be at least 1 year old.', 'Must be fully vaccinated.']);
+insert into public.settings (base_rate, holiday_rate, holidays, requirements, host_name, host_location, host_bio)
+values (50, 75, array[]::date[], array['Dogs must be at least 1 year old.', 'Must be fully vaccinated.', 'No aggressive behavior history.', 'House trained preferred.'], 'Tianyi', 'San Francisco Bay Area', 'Hi, I''m Tianyi! I offer professional dog sitting services in a safe and loving environment. I have a large backyard and focus on providing personalized care for your furry friend.');
 
 -- Enable RLS
 alter table public.bookings enable row level security;

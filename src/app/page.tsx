@@ -1,9 +1,35 @@
-import Image from "next/image";
-import { Dog, Calendar, CheckCircle, MapPin, Shield } from "lucide-react";
+"use client";
 
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import { Dog, MapPin, Shield, CheckCircle } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import BookingWidget from "@/components/BookingWidget";
 
+type Settings = {
+  host_name: string;
+  host_location: string;
+  host_bio: string;
+  requirements: string[];
+};
+
 export default function Home() {
+  const [settings, setSettings] = useState<Settings | null>(null);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const { data } = await supabase.from("settings").select("*").single();
+      if (data) {
+        setSettings(data);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  if (!settings) {
+    return <div className="min-h-screen bg-stone-50 flex items-center justify-center">Loading...</div>;
+  }
+
   return (
     <div className="min-h-screen bg-stone-50 text-stone-800 font-sans">
       {/* Hero Section */}
@@ -12,7 +38,7 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <Dog className="text-amber-600" size={28} />
             <h1 className="text-xl font-bold tracking-tight text-stone-900">
-              Tianyi's Sitter Service
+              {settings.host_name}'s Sitter Service
             </h1>
           </div>
           <a
@@ -30,25 +56,19 @@ export default function Home() {
           {/* Profile Card */}
           <section className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100">
             <div className="flex flex-col sm:flex-row gap-6 items-start">
-              <div className="relative w-32 h-32 sm:w-40 sm:h-40 flex-shrink-0 rounded-full overflow-hidden border-4 border-amber-100">
-                {/* Placeholder for Profile Pic */}
-                <div className="w-full h-full bg-stone-200 flex items-center justify-center text-stone-400">
-                  <span className="text-xs">Profile Pic</span>
-                </div>
-                {/* <Image src="/profile.jpg" alt="Tianyi" fill className="object-cover" /> */}
+              <div className="relative w-32 h-32 sm:w-40 sm:h-40 flex-shrink-0 rounded-full overflow-hidden border-4 border-amber-100 bg-stone-200 flex items-center justify-center text-stone-400">
+                  <Dog size={48} />
               </div>
               <div className="flex-1">
                 <h2 className="text-2xl font-bold text-stone-900 mb-2">
-                  Tianyi
+                  {settings.host_name}
                 </h2>
                 <div className="flex items-center gap-1 text-stone-500 mb-4">
                   <MapPin size={16} />
-                  <span className="text-sm">San Francisco Bay Area</span>
+                  <span className="text-sm">{settings.host_location}</span>
                 </div>
                 <p className="text-stone-600 leading-relaxed">
-                  Hi, I'm Tianyi! I offer professional dog sitting services in a
-                  safe and loving environment. I have a large backyard and focus
-                  on providing personalized care for your furry friend.
+                  {settings.host_bio}
                 </p>
               </div>
             </div>
@@ -93,12 +113,7 @@ export default function Home() {
               Requirements & Rules
             </h3>
             <ul className="space-y-3">
-              {[
-                "Dogs must be at least 1 year old.",
-                "Must be fully vaccinated.",
-                "No aggressive behavior history.",
-                "House trained preferred.",
-              ].map((req, i) => (
+              {settings.requirements.map((req, i) => (
                 <li key={i} className="flex items-center gap-3 text-stone-700">
                   <CheckCircle size={18} className="text-green-600 flex-shrink-0" />
                   <span>{req}</span>

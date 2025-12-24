@@ -12,8 +12,10 @@ import {
   MessageSquare,
   List,
   Calendar as CalendarIcon,
+  Settings as SettingsIcon,
 } from "lucide-react";
 import HostCalendar from "@/components/HostCalendar";
+import SettingsForm from "@/components/SettingsForm";
 
 type Booking = {
   id: string;
@@ -31,21 +33,11 @@ export default function Dashboard() {
   const router = useRouter();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<"list" | "calendar">("list");
+  const [view, setView] = useState<"list" | "calendar" | "settings">("list");
 
   useEffect(() => {
-    const checkUser = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) {
-        router.push("/admin");
-      } else {
-        fetchBookings();
-      }
-    };
-    checkUser();
-  }, [router]);
+    fetchBookings();
+  }, []);
 
   const fetchBookings = async () => {
     setLoading(true);
@@ -123,6 +115,17 @@ export default function Dashboard() {
               <CalendarIcon size={16} />
               Calendar
             </button>
+            <button
+              onClick={() => setView("settings")}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                view === "settings"
+                  ? "bg-white text-stone-900 shadow-sm"
+                  : "text-stone-500 hover:text-stone-700"
+              }`}
+            >
+              <SettingsIcon size={16} />
+              Settings
+            </button>
           </div>
         </div>
 
@@ -130,6 +133,8 @@ export default function Dashboard() {
           <div className="text-center py-12 text-stone-400">Loading...</div>
         ) : view === "calendar" ? (
           <HostCalendar bookings={confirmedBookings} />
+        ) : view === "settings" ? (
+          <SettingsForm />
         ) : bookings.length === 0 ? (
           <div className="text-center py-12 text-stone-400 bg-white rounded-2xl border border-stone-100">
             No booking requests yet.

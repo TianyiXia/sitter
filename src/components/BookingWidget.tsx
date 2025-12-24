@@ -7,14 +7,16 @@ import {
   differenceInCalendarDays, 
   format, 
   isSameDay, 
-  isBefore, 
-  startOfToday 
+  startOfToday,
+  addDays,
+  parseISO
 } from "date-fns";
 import { DayPicker, DateRange } from "react-day-picker";
 
 type Settings = {
   base_rate: number;
   holiday_rate: number;
+  holidays: string[];
 };
 
 type BlockedRange = {
@@ -35,22 +37,23 @@ export default function BookingWidget() {
   const [settings, setSettings] = useState<Settings>({
     base_rate: 50,
     holiday_rate: 75,
+    holidays: [],
   });
 
-  const [blockedDays, setBlockedDays] = useState<Date[]>([]);
   const [blockedRanges, setBlockedRanges] = useState<BlockedRange[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       const { data: settingsData } = await supabase
         .from("settings")
-        .select("base_rate, holiday_rate")
+        .select("base_rate, holiday_rate, holidays")
         .single();
       
       if (settingsData) {
         setSettings({
           base_rate: Number(settingsData.base_rate),
           holiday_rate: Number(settingsData.holiday_rate),
+          holidays: settingsData.holidays || [],
         });
       }
 
@@ -61,8 +64,8 @@ export default function BookingWidget() {
 
       if (bookingsData) {
         const ranges = bookingsData.map((b) => ({
-          from: new Date(b.start_date),
-          to: new Date(b.end_date),
+          from: parseISO(b.start_date),
+          to: parseISO(b.end_date),
         }));
         setBlockedRanges(ranges);
       }
@@ -72,9 +75,22 @@ export default function BookingWidget() {
 
   const calculateTotal = () => {
     if (!range?.from || !range?.to) return 0;
-    const nights = differenceInCalendarDays(range.to, range.from);
-    if (nights <= 0) return 0;
-    return nights * settings.base_rate;
+    
+    let total = 0;
+    let current = new Date(range.from);
+    const end = new Date(range.to);
+    
+    // We count nights, so we iterate from start to end-1 day
+    const nights = differenceInCalendarDays(end, current);
+    
+    for (let i = 0; i < nights; i++) {
+        const dateStr = format(current, "yyyy-MM-dd");
+        const isHoliday = settings.holidays.includes(dateStr);
+        total += isHoliday ? settings.holiday_rate : settings.base_rate;
+        current = addDays(current, 1);
+    }
+    
+    return total;
   };
 
   const total = calculateTotal();
@@ -88,11 +104,10 @@ export default function BookingWidget() {
   const hasOverlap = (newRange: DateRange | undefined) => {
     if (!newRange?.from || !newRange?.to) return false;
     
-    // Check every day in the new range
     let current = new Date(newRange.from);
     while (current <= newRange.to) {
       if (isBlocked(current)) return true;
-      current.setDate(current.getDate() + 1);
+      current = addDays(current, 1);
     }
     return false;
   };
@@ -155,7 +170,7 @@ export default function BookingWidget() {
       <div className="bg-green-50 p-6 rounded-2xl shadow-lg border border-green-100 text-center">
         <h3 className="text-xl font-bold text-green-800 mb-2">Request Sent!</h3>
         <p className="text-green-700 mb-4">
-          Thanks, {guestName}. I'll text you at {guestPhone} shortly to confirm.
+          Thanks, {guestName}. I'll contact you at {guestPhone} shortly to confirm.
         </p>
         <button
           onClick={() => {
@@ -194,13 +209,17 @@ export default function BookingWidget() {
               onSelect={handleSelect}
               disabled={[
                 { before: startOfToday() },
-                ...blockedRanges
+                ...blockedRanges.map(r => ({ from: r.from, to: r.to }))
               ]}
+              modifiers={{
+                holiday: (date) => settings.holidays.includes(format(date, "yyyy-MM-dd"))
+              }}
               modifiersClassNames={{
                 selected: "bg-amber-600 text-white",
                 range_middle: "bg-amber-100 text-amber-900",
                 range_start: "rounded-l-full",
-                range_end: "rounded-r-full"
+                range_end: "rounded-r-full",
+                holiday: "text-red-500 font-bold"
               }}
               styles={{
                 caption: { color: "#444" },
@@ -254,7 +273,12 @@ export default function BookingWidget() {
 
         {/* Price Estimate */}
         <div className="bg-stone-50 p-3 rounded-lg flex justify-between items-center">
-          <span className="text-stone-600 text-sm">Est. Total (${settings.base_rate}/night)</span>
+          <div className="flex flex-col">
+            <span className="text-stone-600 text-xs">Est. Total</span>
+            <span className="text-stone-400 text-[10px]">
+                Base: ${settings.base_rate} / Holiday: ${settings.holiday_rate}
+            </span>
+          </div>
           <span className="text-lg font-bold text-stone-900">
             ${total.toFixed(2)}
           </span>
