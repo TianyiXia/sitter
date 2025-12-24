@@ -1,83 +1,97 @@
-# Design Document: Sitter
+# Design Document: Sitter (As Built - v1.0)
 
 ## 1. Introduction
-Sitter is an over-simplified Rover-like application for a single host (myself) to manage a dog-sitting business. v0 focuses on simplicity and serving a single host.
+Sitter is a deployed, single-host dog sitting application similar to a simplified Rover. It allows a host (Tianyi) to manage bookings, set dynamic pricing, and receive instant notifications.
 
 ## 2. Goals & Objectives
-- Provide a professional-looking landing page for guests.
-- Automate the booking request process.
-- Manage availability via a simple calendar.
+- **Professional Presence:** A deployed web app (`sitter.vercel.app`) showcasing the host's profile and services.
+- **Automation:** Automatic cost calculation (including holiday rates) and date blocking.
+- **Management:** A secure admin dashboard to manage requests and settings without touching code/DB.
 
 ## 3. Target Audience
-- Guests looking to book dog-sitting services with me.
+- **Guests:** Dog owners looking to book services.
+- **Host:** Myself (Tianyi) managing the business.
 
-## 4. Functional Requirements
+## 4. Functional Requirements (Implemented)
 ### Guest Side
-- **Profile Page:** View my profile, services, and requirements.
-- **Booking Request (RTB):**
-    - Select pick-up and drop-off date/time.
-    - View calculated cost (Base rate vs. Holiday rate).
-    - Provide contact info: Name and Phone number.
-    - Include an optional message.
-    - View validation/requirements list (e.g., "No dogs under 1 year old").
-- **Cost Calculation:** Simple logic for base vs. holiday rates.
+- **Landing Page:** Dynamic profile fetching Host Name, Bio, Location, and Requirements from the DB.
+- **Booking Widget:**
+    - `react-day-picker` integration for selecting date ranges.
+    - **Smart Blocking:** Automatically disables dates that overlap with confirmed bookings.
+    - **Dynamic Pricing:** Calculates total cost by checking each night against "Holiday" dates in the DB.
+    - **Form:** Collects Name, Phone, and Message.
+- **Notifications:** Triggered on submission.
 
 ### Host Side
-- **Dashboard:** See current booking requests.
-- **Calendar Management:**
-    - View confirmed bookings.
-    - Confirm/Reject requests.
-    - Confirming a booking automatically blocks the dates on the guest-facing calendar (full-day blocks).
-- **Notifications:** Receive a text message (SMS) on new RTB at 650-580-9382.
+- **Secure Login:** Supabase Auth (Email/Password) protected by Next.js Middleware.
+- **Dashboard:**
+    - **List View:** See all pending/confirmed/rejected requests.
+    - **Calendar View:** A visual month-view calendar highlighting confirmed bookings.
+    - **Actions:** "Confirm" (blocks dates) or "Reject" requests.
+- **Settings Management:**
+    - **Profile:** Update Name, Bio, Location.
+    - **Pricing:** Set Base Rate and Holiday Rate.
+    - **Holidays:** Add/Remove specific dates for surge pricing.
+    - **Requirements:** Add/Remove guest requirements.
+- **Notifications:**
+    - **Email:** Sent via Gmail (Nodemailer).
+    - **WeChat:** Sent via WxPusher (Instant push notification).
 
-### Out of Scope (v0)
-- In-app messaging (initial RTB message only).
-- Payments.
-- Support for multiple hosts.
-- Accounts for guests (Name + Phone is enough).
+### Out of Scope (Current)
+- In-app messaging (Guest message is sent via notification only).
+- Payments (Stripe integration).
+- Multi-host support.
 
 ## 5. Non-Functional Requirements
-- **Simplicity:** Minimize complexity in the DB and UI.
-- **Cost:** Use free-tier services.
-- **Reliability:** Basic persistence for booking requests.
+- **Zero Cost:** Hosted on Vercel (Free), DB on Supabase (Free), Notifications via Personal Gmail/WeChat (Free).
+- **Security:** RLS (Row Level Security) enabled on database. Middleware protects admin routes.
 
 ## 6. System Architecture
-- **Web App:** Next.js (Frontend + API Routes).
-- **Database:** Supabase (PostgreSQL) for simplicity and free tier.
-- **Notifications:** Integration with a service like Twilio or an SMS gateway.
+- **Frontend:** Next.js 14 (App Router) + React Server Components.
+- **Styling:** Tailwind CSS + Lucide React.
+- **Backend:** Next.js API Routes (`/api/notify`) + Supabase Client.
+- **Database:** Supabase (PostgreSQL).
+- **Auth:** Supabase Auth + Next.js Middleware.
 
 ## 7. Technology Stack
-- **Framework:** Next.js (React)
-- **Styling:** Tailwind CSS + Lucide React (icons)
-- **Database/Auth:** Supabase
-- **Deployment:** Vercel (Free tier)
-- **SMS:** Twilio (or similar)
+- **Framework:** Next.js
+- **Language:** TypeScript
+- **State/Data:** Supabase SSR (`@supabase/ssr`)
+- **Date Handling:** `date-fns`
+- **UI Components:** `react-day-picker`
+- **Notifications:** `nodemailer` (SMTP), `fetch` (WxPusher API)
+- **Deployment:** Vercel
 
 ## 8. Data Model
 ### `bookings`
-- `id`: UUID (Primary Key)
-- `guest_name`: String
-- `guest_phone`: String
+- `id`: UUID (PK)
+- `guest_name`: Text
+- `guest_phone`: Text
 - `start_date`: Date
 - `end_date`: Date
-- `status`: Enum (pending, confirmed, rejected)
-- `total_price`: Decimal
+- `total_price`: Numeric
 - `message`: Text
-- `created_at`: Timestamp
+- `status`: Text ('pending', 'confirmed', 'rejected')
+- `created_at`: Timestamptz
 
-### `settings` (Host Configuration)
-- `base_rate`: Decimal
-- `holiday_rate`: Decimal
-- `holidays`: List of Dates
-- `requirements`: List of Strings
+### `settings`
+- `id`: UUID (PK)
+- `base_rate`: Numeric
+- `holiday_rate`: Numeric
+- `holidays`: Date[] (Array of dates)
+- `requirements`: Text[] (Array of strings)
+- `host_name`: Text
+- `host_location`: Text
+- `host_bio`: Text
 
 ## 9. UI/UX Design
-- **Landing Page:** Large profile picture, "About Me" section, and a sticky "Book Now" sidebar.
-- **Calendar:** Simple date-range picker highlighting available vs. blocked dates.
-- **Host Dashboard:** A simple table of requests with "Approve/Deny" buttons.
+- **Guest:** Clean, single-page layout with sticky booking widget. visual feedback for unavailable dates.
+- **Admin:** Tabbed interface (List / Calendar / Settings) for easy management on mobile or desktop.
 
-## 10. Roadmap & Milestones
-- **Phase 1:** Basic landing page and data schema.
-- **Phase 2:** Booking request form and SMS notification.
-- **Phase 3:** Host dashboard and calendar blocking logic.
-- **Phase 4:** Polishing and deployment.
+## 10. Roadmap
+- [x] **Phase 1:** Basic landing page and data schema.
+- [x] **Phase 2:** Booking request form and notifications (Email + WeChat).
+- [x] **Phase 3:** Host dashboard, Calendar View, and Blocking logic.
+- [x] **Phase 4:** Dynamic Holiday Pricing and Host Settings Page.
+- [x] **Phase 5:** Deployment and Security (Middleware).
+- [ ] **Future:** Payment integration (Stripe) and Guest Reviews.
