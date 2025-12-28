@@ -1,10 +1,19 @@
 "use client";
 
-// ... imports
-import { LogOut, User } from "lucide-react";
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import { Dog, MapPin, Shield, CheckCircle, ImageIcon, LogOut, User } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import BookingWidget from "@/components/BookingWidget";
 
-// ... types
+type Settings = {
+  host_name: string;
+  host_location: string;
+  host_bio: string;
+  requirements: string[];
+  photos: string[];
+};
 
 export default function Home() {
   const router = useRouter();
@@ -78,7 +87,6 @@ export default function Home() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-3 gap-8">
-        {/* ... (rest of main content) */}
         {/* Left Column: Profile & Info */}
         <div className="md:col-span-2 space-y-8">
           {/* Profile Card */}
