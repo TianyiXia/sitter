@@ -44,7 +44,7 @@ export default function BookingWidget() {
   const [user, setUser] = useState<any>(null);
 
   const getHolidays = () => {
-    // ... (keep holidays)
+    // US Holidays 2025 & 2026
     return [
       // 2025
       "2025-01-01", // New Year's Day
@@ -111,7 +111,63 @@ export default function BookingWidget() {
     fetchData();
   }, []);
 
-  // ... (keep calculateTotal, isBlocked, hasOverlap, handleSelect)
+  const calculateTotal = () => {
+    if (!range?.from || !range?.to) return 0;
+    
+    let current = new Date(range.from);
+    const end = new Date(range.to);
+    
+    // We count nights, so we iterate from start to end-1 day
+    const nights = differenceInCalendarDays(end, current);
+    let isHolidayStay = false;
+
+    // Check if any night is a holiday
+    for (let i = 0; i < nights; i++) {
+        const dateStr = format(current, "yyyy-MM-dd");
+        if (holidays.includes(dateStr)) {
+            isHolidayStay = true;
+            break;
+        }
+        current = addDays(current, 1);
+    }
+    
+    const rate = isHolidayStay ? settings.holiday_rate : settings.base_rate;
+    return nights * rate;
+  };
+
+  const total = calculateTotal();
+  const isHolidayStay = total > 0 && (total / (differenceInCalendarDays(range?.to || new Date(), range?.from || new Date()) || 1)) === settings.holiday_rate;
+
+  const isBlocked = (date: Date) => {
+    // Check if date is in a confirmed booking range
+    const inBooking = blockedRanges.some(
+      (range) => date >= range.from && date <= range.to
+    );
+    // Check if date is manually marked as unavailable
+    const isUnavailable = settings.unavailable_dates.includes(format(date, "yyyy-MM-dd"));
+    
+    return inBooking || isUnavailable;
+  };
+
+  const hasOverlap = (newRange: DateRange | undefined) => {
+    if (!newRange?.from || !newRange?.to) return false;
+    
+    let current = new Date(newRange.from);
+    while (current <= newRange.to) {
+      if (isBlocked(current)) return true;
+      current = addDays(current, 1);
+    }
+    return false;
+  };
+
+  const handleSelect = (newRange: DateRange | undefined) => {
+    if (hasOverlap(newRange)) {
+        setError("Selected range includes unavailable dates.");
+        return;
+    }
+    setError("");
+    setRange(newRange);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -160,7 +216,6 @@ export default function BookingWidget() {
   };
 
   if (success) {
-    // ... (keep success view)
     return (
       <div className="bg-green-50 p-6 rounded-2xl shadow-lg border border-green-100 text-center">
         <h3 className="text-xl font-bold text-green-800 mb-2">Request Sent!</h3>
@@ -181,7 +236,6 @@ export default function BookingWidget() {
     );
   }
 
-  // ... (render form)
   return (
     <div
       id="book"
@@ -200,7 +254,7 @@ export default function BookingWidget() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* ... (rest of form) */}
+        {/* Date Picker */}
         <div className="space-y-2">
           <label className="block text-sm font-medium text-stone-700">
             Select Dates
