@@ -200,29 +200,46 @@ export default function Dashboard() {
                   </div>
 
                   {/* Actions */}
-                  {booking.status === "pending" && (
-                    <div className="flex gap-2 self-start md:self-center">
+                  <div className="flex gap-2 self-start md:self-center flex-col md:flex-row items-end md:items-center">
+                    {booking.status === "pending" && (
+                      <>
+                        <button
+                          onClick={() => updateStatus(booking.id, "confirmed")}
+                          className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                        >
+                          <CheckCircle size={16} />
+                          Confirm
+                        </button>
+                        <button
+                          onClick={() => updateStatus(booking.id, "rejected")}
+                          className="flex items-center gap-1 bg-white border border-stone-200 text-stone-600 hover:bg-stone-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                        >
+                          <XCircle size={16} />
+                          Reject
+                        </button>
+                      </>
+                    )}
+                    
+                    {booking.status === "confirmed" && (
                       <button
-                        onClick={() => updateStatus(booking.id, "confirmed")}
-                        className="flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                        onClick={() => {
+                          if (confirm("Are you sure you want to reject this confirmed booking? This will free up your calendar.")) {
+                            updateStatus(booking.id, "rejected");
+                          }
+                        }}
+                        className="flex items-center gap-1 bg-white border border-red-200 text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
                       >
-                        <CheckCircle size={16} />
-                        Confirm
+                        <XCircle size={14} />
+                        Cancel & Reject
                       </button>
-                      <button
-                        onClick={() => updateStatus(booking.id, "rejected")}
-                        className="flex items-center gap-1 bg-white border border-stone-200 text-stone-600 hover:bg-stone-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                      >
-                        <XCircle size={16} />
-                        Reject
-                      </button>
-                    </div>
-                  )}
-                  {booking.status !== "pending" && (
-                     <div className="text-xs text-stone-400 self-start md:self-center">
-                        Processed on {new Date(booking.created_at).toLocaleDateString()}
-                     </div>
-                  )}
+                    )}
+
+                    {booking.status !== "pending" && (
+                       <div className="text-xs text-stone-400 mt-1">
+                          Processed on {new Date(booking.created_at).toLocaleDateString()}
+                       </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

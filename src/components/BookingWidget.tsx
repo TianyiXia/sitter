@@ -16,7 +16,7 @@ import { DayPicker, DateRange } from "react-day-picker";
 type Settings = {
   base_rate: number;
   holiday_rate: number;
-  holidays: string[];
+  unavailable_dates: string[];
 };
 
 type BlockedRange = {
@@ -37,23 +37,61 @@ export default function BookingWidget() {
   const [settings, setSettings] = useState<Settings>({
     base_rate: 50,
     holiday_rate: 75,
-    holidays: [],
+    unavailable_dates: [],
   });
 
   const [blockedRanges, setBlockedRanges] = useState<BlockedRange[]>([]);
+  const [user, setUser] = useState<any>(null);
+
+  const getHolidays = () => {
+    // ... (keep holidays)
+    return [
+      // 2025
+      "2025-01-01", // New Year's Day
+      "2025-01-20", // MLK Day
+      "2025-05-26", // Memorial Day
+      "2025-06-19", // Juneteenth
+      "2025-07-04", // Independence Day
+      "2025-09-01", // Labor Day
+      "2025-11-27", // Thanksgiving
+      "2025-11-28", // Day after Thanksgiving
+      "2025-12-24", // Christmas Eve
+      "2025-12-25", // Christmas Day
+      "2025-12-31", // NYE
+      // 2026
+      "2026-01-01", // New Year's Day
+      "2026-01-19", // MLK Day
+      "2026-05-25", // Memorial Day
+      "2026-06-19", // Juneteenth
+      "2026-07-04", // Independence Day
+      "2026-09-07", // Labor Day
+      "2026-11-26", // Thanksgiving
+      "2026-11-27", // Day after Thanksgiving
+      "2026-12-24", // Christmas Eve
+      "2026-12-25", // Christmas Day
+      "2026-12-31", // NYE
+    ];
+  };
+
+  const holidays = getHolidays();
 
   useEffect(() => {
     const fetchData = async () => {
+      // Fetch User
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      
+      // Fetch Settings
       const { data: settingsData } = await supabase
         .from("settings")
-        .select("base_rate, holiday_rate, holidays")
+        .select("base_rate, holiday_rate, unavailable_dates")
         .single();
       
       if (settingsData) {
         setSettings({
           base_rate: Number(settingsData.base_rate),
           holiday_rate: Number(settingsData.holiday_rate),
-          holidays: settingsData.holidays || [],
+          unavailable_dates: settingsData.unavailable_dates || [],
         });
       }
 
@@ -73,53 +111,7 @@ export default function BookingWidget() {
     fetchData();
   }, []);
 
-  const calculateTotal = () => {
-    if (!range?.from || !range?.to) return 0;
-    
-    let total = 0;
-    let current = new Date(range.from);
-    const end = new Date(range.to);
-    
-    // We count nights, so we iterate from start to end-1 day
-    const nights = differenceInCalendarDays(end, current);
-    
-    for (let i = 0; i < nights; i++) {
-        const dateStr = format(current, "yyyy-MM-dd");
-        const isHoliday = settings.holidays.includes(dateStr);
-        total += isHoliday ? settings.holiday_rate : settings.base_rate;
-        current = addDays(current, 1);
-    }
-    
-    return total;
-  };
-
-  const total = calculateTotal();
-
-  const isBlocked = (date: Date) => {
-    return blockedRanges.some(
-      (range) => date >= range.from && date <= range.to
-    );
-  };
-
-  const hasOverlap = (newRange: DateRange | undefined) => {
-    if (!newRange?.from || !newRange?.to) return false;
-    
-    let current = new Date(newRange.from);
-    while (current <= newRange.to) {
-      if (isBlocked(current)) return true;
-      current = addDays(current, 1);
-    }
-    return false;
-  };
-
-  const handleSelect = (newRange: DateRange | undefined) => {
-    if (hasOverlap(newRange)) {
-        setError("Selected range includes unavailable dates.");
-        return;
-    }
-    setError("");
-    setRange(newRange);
-  };
+  // ... (keep calculateTotal, isBlocked, hasOverlap, handleSelect)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,6 +127,8 @@ export default function BookingWidget() {
       const { error: dbError } = await supabase.from("bookings").insert({
         guest_name: guestName,
         guest_phone: guestPhone,
+        guest_email: user?.email || undefined,
+        user_id: user?.id || undefined,
         start_date: format(range.from, "yyyy-MM-dd"),
         end_date: format(range.to, "yyyy-MM-dd"),
         total_price: total,
@@ -166,6 +160,7 @@ export default function BookingWidget() {
   };
 
   if (success) {
+    // ... (keep success view)
     return (
       <div className="bg-green-50 p-6 rounded-2xl shadow-lg border border-green-100 text-center">
         <h3 className="text-xl font-bold text-green-800 mb-2">Request Sent!</h3>
@@ -186,6 +181,7 @@ export default function BookingWidget() {
     );
   }
 
+  // ... (render form)
   return (
     <div
       id="book"
@@ -196,8 +192,15 @@ export default function BookingWidget() {
         Request to Book
       </h3>
 
+      {!user && (
+        <div className="mb-4 p-3 bg-amber-50 text-amber-800 rounded-lg text-sm flex justify-between items-center">
+          <span>Log in to track your booking.</span>
+          <a href="/login" className="font-bold underline">Login</a>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Date Picker */}
+        {/* ... (rest of form) */}
         <div className="space-y-2">
           <label className="block text-sm font-medium text-stone-700">
             Select Dates
@@ -209,10 +212,11 @@ export default function BookingWidget() {
               onSelect={handleSelect}
               disabled={[
                 { before: startOfToday() },
-                ...blockedRanges.map(r => ({ from: r.from, to: r.to }))
+                ...blockedRanges.map(r => ({ from: r.from, to: r.to })),
+                ...settings.unavailable_dates.map(d => parseISO(d))
               ]}
               modifiers={{
-                holiday: (date) => settings.holidays.includes(format(date, "yyyy-MM-dd"))
+                holiday: (date) => holidays.includes(format(date, "yyyy-MM-dd"))
               }}
               modifiersClassNames={{
                 selected: "bg-amber-600 text-white",
@@ -274,9 +278,11 @@ export default function BookingWidget() {
         {/* Price Estimate */}
         <div className="bg-stone-50 p-3 rounded-lg flex justify-between items-center">
           <div className="flex flex-col">
-            <span className="text-stone-600 text-xs">Est. Total</span>
+            <span className="text-stone-600 text-xs">Est. Total ({differenceInCalendarDays(range?.to || new Date(), range?.from || new Date())} nights)</span>
             <span className="text-stone-400 text-[10px]">
-                Base: ${settings.base_rate} / Holiday: ${settings.holiday_rate}
+                {isHolidayStay 
+                  ? `Holiday Rate Applied ($${settings.holiday_rate}/night)` 
+                  : `Standard Rate ($${settings.base_rate}/night)`}
             </span>
           </div>
           <span className="text-lg font-bold text-stone-900">
